@@ -21,11 +21,101 @@ struct Customer {
   string zip;
   string phone;
   string email;
+
+  string print_detail() {
+    return "Customer IT #" + to_string(id) + ": " + "\n" + name + ", ph. " + phone + ", email: " + email + "\n" + address + "\n" + city + ", " + state + " " + zip;
+  }
 };
+
+struct Order {
+
+  int order_id;
+  string order_date;
+  int cust_id;
+  vector<LineItem> line_items;
+  Payment* payment;
+
+  double total() {
+    int total = 0;
+    for (const LineItem& item : line_items) {
+      total += item.sub_total();
+    }
+  }
+  ~Order() {
+    delete payment;
+  }
+
+  string print_order() {
+
+    string order_str = "===========================";
+    order_str += "Order #" + to_string(order_id) + ", Date: " + to_string(order_date) + "\n";
+    order_str += payment->print_detail() + "\n";
+    order_str += customers[cust_id].print_detail() + "\n";
+
+    for (const LineItem& item : line_items) {
+      order_str += item.description + ": $" + to_string(item.price) + "\n";
+    }
+    order_str += "Total: $" + to_string(total()) + "\n";
+    return order_str;
+  }
+};
+
+struct LineItem {
+  int item_id;
+  int qty;
+  double sub_total() {
+    return qty * items[item_id].price;
+  
+  }
+};
+
+struct Payment {
+  double amount;
+  string print_detail(int payment_type) {
+    string payment_str = "Payment: $" + to_string(amount) + "\n";
+    if (payment_type == 1) {
+      payment_str += ((Credit*)this)->print_detail();
+    } else if (payment_type == 2) {
+      payment_str += ((PayPal*)this)->print_detail();
+    } else if (payment_type == 3) {
+      payment_str += ((WireTransfer*)this)->print_detail();
+
+  }
+  return payment_str;
+  }
+
+};
+
+struct Credit {
+  string card_number;
+  string expiration;
+  string print_detail() {
+    return "Paid by Credit card: " + card_number + ", exp. " + expiration + "\n";
+  }
+};
+
+struct PayPal {
+  string paypal_id;
+  string print_detail() {
+    return "Paid by PayPal ID: " + paypal_id + "\n";
+  
+}
+};
+
+struct WireTransfer {
+  string bank_id;
+  string account_id;
+  string print_detail() {
+    return "Paid by Wire Transfer from Bank ID " + bank_id + ", account #: " + account_id + "\n";
+  }
+};
+
 
 vector<Item> items;
 
 vector<Customer> customers;
+
+vector<Order> orders;
 
 void read_customers(const string& filename) {
   ifstream file(filename);
@@ -116,10 +206,35 @@ void one_customer_order() {
   cout << "Customer not found" << endl;
 }
 
-
+void read_orders(const string& filename) {
+  ifstream file(filename);
+  string line;
+  while (getline(file, line)) {
+    vector<string> fields = split(line, ',');
+    Order order;
+    order.order_id = stoi(fields[1]);
+    order.order_date = fields[2];
+    order.cust_id = stoi(fields[0]);
+    for (int i = 3; i < fields.size(); i += 1) {
+      // Handle the line item, the int before the - is the item id and the int after the - is the quantity
+      vector<string> line_item = split(fields[i], '-');
+      LineItem item;
+      item.item_id = stoi(line_item[0]);
+      item.qty = stoi(line_item[1]);
+      
+    }
+    orders.push_back(order);
+  }
+  cout << "Total orders: " << orders.size() << endl;
+}
 
 int main() {
   read_customers("customers.txt");
   read_items("items.txt");
-  one_customer_order();
+  read_orders("orders.txt");
+
+  ofstream ofs("order_report.txt");
+  for (const auto& order : orders) {
+    ofs << order.print_order() << endl;
+  }
 }
