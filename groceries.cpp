@@ -12,6 +12,48 @@ struct Item {
   double price;
 };
 
+struct LineItem {
+  int item_id;
+  int qty;
+  string description;
+  double price;
+
+  double sub_total() const {
+    return price * qty;
+  }
+  
+};
+
+struct Payment {
+  double amount;
+  virtual string print_detail() const = 0;
+  virtual ~Payment() {}
+
+};
+
+struct Credit : public Payment {
+  string card_number;
+  string expiration_date;
+  string print_detail() const override {
+    return "Paid by Credit Card: " + card_number + ", expires: " + expiration_date + "\n";
+  }
+};
+
+struct PayPal : public Payment{
+  string paypal_id;
+  string print_detail() const override{
+    return "Paid by PayPal ID: " + paypal_id + "\n";
+  }
+};
+
+struct WireTransfer : public Payment{
+  string bank_id;
+  string account_id;
+  string print_detail() const override {
+    return "Paid by Wire Transfer from Bank ID " + bank_id + ", account #: " + account_id + "\n";
+  }
+};
+
 struct Customer {
   int id;
   string name;
@@ -22,10 +64,13 @@ struct Customer {
   string phone;
   string email;
 
-  string print_detail() {
-    return "Customer IT #" + to_string(id) + ": " + "\n" + name + ", ph. " + phone + ", email: " + email + "\n" + address + "\n" + city + ", " + state + " " + zip;
+  string print_detail() const {
+    return "Customer ID #" + to_string(id) + ": " + "\n" + name + ", ph. " + phone + ", email: " + email + "\n" + address + "\n" + city + ", " + state + " " + zip;
   }
 };
+
+
+
 
 struct Order {
 
@@ -40,75 +85,42 @@ struct Order {
     for (const LineItem& item : line_items) {
       total += item.sub_total();
     }
+    return total;
   }
   ~Order() {
     delete payment;
   }
 
-  string print_order() {
-
+string print_order(const vector<Customer>& customers) const {
     string order_str = "===========================";
-    order_str += "Order #" + to_string(order_id) + ", Date: " + to_string(order_date) + "\n";
+    order_str += "Order #" + to_string(order_id) + ", Date: " + order_date + "\n";
     order_str += payment->print_detail() + "\n";
-    order_str += customers[cust_id].print_detail() + "\n";
 
     for (const LineItem& item : line_items) {
-      order_str += item.description + ": $" + to_string(item.price) + "\n";
+        order_str += item.description + ": $" + to_string(item.price) + "\n";
     }
+
+    // Find the customer associated with this order
+    for (const Customer& customer : customers) {
+        if (customer.id == cust_id) {
+            order_str += customer.print_detail() + "\n";
+            break;
+        }
+    }
+
     order_str += "Total: $" + to_string(total()) + "\n";
     return order_str;
-  }
-};
-
-struct LineItem {
-  int item_id;
-  int qty;
-  double sub_total() {
-    return qty * items[item_id].price;
-  
-  }
-};
-
-struct Payment {
-  double amount;
-  string print_detail(int payment_type) {
-    string payment_str = "Payment: $" + to_string(amount) + "\n";
-    if (payment_type == 1) {
-      payment_str += ((Credit*)this)->print_detail();
-    } else if (payment_type == 2) {
-      payment_str += ((PayPal*)this)->print_detail();
-    } else if (payment_type == 3) {
-      payment_str += ((WireTransfer*)this)->print_detail();
-
-  }
-  return payment_str;
-  }
-
-};
-
-struct Credit {
-  string card_number;
-  string expiration;
-  string print_detail() {
-    return "Paid by Credit card: " + card_number + ", exp. " + expiration + "\n";
-  }
-};
-
-struct PayPal {
-  string paypal_id;
-  string print_detail() {
-    return "Paid by PayPal ID: " + paypal_id + "\n";
-  
 }
-};
 
-struct WireTransfer {
-  string bank_id;
-  string account_id;
-  string print_detail() {
-    return "Paid by Wire Transfer from Bank ID " + bank_id + ", account #: " + account_id + "\n";
+  double total() const {
+    double total = 0;
+    for (const LineItem& item : line_items) {
+      total += item.sub_total();
+    }
+    return total;
   }
 };
+
 
 
 vector<Item> items;
@@ -235,6 +247,6 @@ int main() {
 
   ofstream ofs("order_report.txt");
   for (const auto& order : orders) {
-    ofs << order.print_order() << endl;
+    ofs << order.print_order(customers) << endl;
   }
 }
