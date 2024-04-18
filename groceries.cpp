@@ -80,6 +80,7 @@ struct Order {
   vector<LineItem> line_items;
   Payment* payment;
 
+
   double total() {
     int total = 0;
     for (const LineItem& item : line_items) {
@@ -87,12 +88,13 @@ struct Order {
     }
     return total;
   }
-  ~Order() {
-    delete payment;
-  }
+  // ~Order() {
+  //   delete payment;
+
+  // }
 
 string print_order(const vector<Customer>& customers) const {
-    string order_str = "===========================";
+    string order_str = "===========================\n";
     order_str += "Order #" + to_string(order_id) + ", Date: " + order_date + "\n";
     order_str += payment->print_detail() + "\n";
 
@@ -128,6 +130,7 @@ vector<Item> items;
 vector<Customer> customers;
 
 vector<Order> orders;
+
 
 void read_customers(const string& filename) {
   ifstream file(filename);
@@ -218,27 +221,73 @@ void one_customer_order() {
   cout << "Customer not found" << endl;
 }
 
+// Define Order, LineItem, and Payment structs/classes here
+
 void read_orders(const string& filename) {
-  ifstream file(filename);
-  string line;
-  while (getline(file, line)) {
-    vector<string> fields = split(line, ',');
-    Order order;
-    order.order_id = stoi(fields[1]);
-    order.order_date = fields[2];
-    order.cust_id = stoi(fields[0]);
-    for (int i = 3; i < fields.size(); i += 1) {
-      // Handle the line item, the int before the - is the item id and the int after the - is the quantity
-      vector<string> line_item = split(fields[i], '-');
-      LineItem item;
-      item.item_id = stoi(line_item[0]);
-      item.qty = stoi(line_item[1]);
-      
+    ifstream file(filename);
+    string line;
+
+    // Read two lines at a time
+    while (getline(file, line)) {
+        // Read order information
+        vector<string> fields = split(line, ',');
+        Order order;
+        order.cust_id = stoi(fields[0]);
+        order.order_id = stoi(fields[1]);
+        order.order_date = fields[2];
+        cout << "Order ID: " << order.order_id << " information collected" << endl;
+        for (int i = 3; i < fields.size(); i += 1) {
+            // handle line items
+            LineItem line_item;
+            line_item.item_id = stoi(fields[i].substr(0, 5));
+            line_item.qty = stoi(fields[i].substr(6));
+            for (const Item& item : items) {
+                if (item.id == line_item.item_id) {
+                    line_item.description = item.description;
+                    line_item.price = item.price;
+                    break;
+                }
+            }
+            order.line_items.push_back(line_item);
+            cout << "Item ID: " + to_string(line_item.item_id) + ", Quantity: " + to_string(line_item.qty) << endl;
+        }
+        cout << "Order ID: " << order.order_id << " line items collected" << endl;
+
+        // Read payment information
+        if (getline(file, line)) {
+            vector<string> payment_fields = split(line, ',');
+            int payment_type = stoi(payment_fields[0]);
+            if (payment_type == 1) {
+                Credit* credit = new Credit;
+                credit->card_number = payment_fields[1];
+                credit->expiration_date = payment_fields[2];
+                order.payment = credit;
+            } else if (payment_type == 2) {
+                PayPal* paypal = new PayPal;
+                paypal->paypal_id = payment_fields[1];
+                order.payment = paypal;
+            } else if (payment_type == 3) {
+                WireTransfer* wire_transfer = new WireTransfer;
+                wire_transfer->bank_id = payment_fields[1];
+                wire_transfer->account_id = payment_fields[2];
+                order.payment = wire_transfer;
+            }
+            cout << "Order ID: " << order.order_id << " payment collected" << endl;
+        } else {
+            cerr << "Error: Incomplete data for order ID " << order.order_id << endl;
+            break; // Exit loop if there's an error reading payment information
+        }
+
+        orders.push_back(order);
+        cout << "Order ID: " << order.order_id << " Finished" << endl;
+        //call the ~Order() destructor
+
     }
-    orders.push_back(order);
-  }
-  cout << "Total orders: " << orders.size() << endl;
+
+    cout << "Total orders: " << orders.size() << endl;
 }
+
+
 
 int main() {
   read_customers("customers.txt");
@@ -246,7 +295,42 @@ int main() {
   read_orders("orders.txt");
 
   ofstream ofs("order_report.txt");
-  for (const auto& order : orders) {
-    ofs << order.print_order(customers) << endl;
+  int i = 0;
+  for (i = 0; i < orders.size(); i++) {
+    
+    ofs << orders[i].print_order(customers) << endl;
   }
 }
+
+
+
+
+//Elephant Code GRAVEYARD
+
+
+// while (getline(file, line)) {
+//     vector<string> fields = split(line, ',');
+//     Order order;
+//     order.cust_id = stoi(fields[0]);
+//     order.order_id = stoi(fields[1]);
+//     order.order_date = fields[2];
+//     // cout << "Order ID: " << order.order_id << endl;
+//     // cout << "Order Date: " << order.order_date << endl;
+//     // cout << "Customer ID: " << order.cust_id << endl;
+//     for (int i = 3; i < fields.size(); i += 1) {
+//       // handle line items, the first 5 digits are the item id, and the last one is the quantity
+//       LineItem line_item;
+//       line_item.item_id = stoi(fields[i].substr(0, 5));
+//       line_item.qty = stoi(fields[i].substr(5));
+//       for (const Item& item : items) {
+//         if (item.id == line_item.item_id) {
+//           line_item.description = item.description;
+//           line_item.price = item.price;
+//           break;
+//         }
+//       }
+//       order.line_items.push_back(line_item);
+      
+//       // cout << "Item ID: " + to_string(line_item.item_id) + ", Quantity: " + to_string(line_item.qty) << endl;
+      
+//     }
