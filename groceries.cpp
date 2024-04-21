@@ -3,6 +3,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <iomanip>
+
 
 using namespace std;
 
@@ -22,6 +25,10 @@ struct LineItem {
     return price * qty;
   }
   
+  friend bool operator<(const LineItem& item1, const LineItem& item2) {
+    return item1.item_id < item2.item_id;
+  }
+
 };
 
 struct Payment {
@@ -35,7 +42,7 @@ struct Credit : public Payment {
   string card_number;
   string expiration_date;
   string print_detail() const override {
-    return "Paid by Credit Card: " + card_number + ", expires: " + expiration_date + "\n";
+    return "Paid by Credit Card: " + card_number + ", exp. " + expiration_date + "\n";
   }
 };
 
@@ -50,7 +57,7 @@ struct WireTransfer : public Payment{
   string bank_id;
   string account_id;
   string print_detail() const override {
-    return "Paid by Wire Transfer from Bank ID " + bank_id + ", account #: " + account_id + "\n";
+    return "Paid by Wire Transfer from Bank ID " + bank_id + ", Account #: " + account_id + "\n";
   }
 };
 
@@ -96,21 +103,25 @@ struct Order {
 string print_order(const vector<Customer>& customers) const {
     string order_str = "===========================\n";
     order_str += "Order #" + to_string(order_id) + ", Date: " + order_date + "\n";
-    order_str += payment->print_detail() + "\n";
-
-    for (const LineItem& item : line_items) {
-        order_str += item.description + ": $" + to_string(item.price) + "\n";
-    }
-
+    ostringstream total_stream;
+    total_stream << fixed << setprecision(2) << total();
+    
+    order_str += "Amount: $" + total_stream.str() + ", " + payment->print_detail() + "\n";
     // Find the customer associated with this order
     for (const Customer& customer : customers) {
-        if (customer.id == cust_id) {
-            order_str += customer.print_detail() + "\n";
-            break;
-        }
+      if (customer.id == cust_id) {
+        order_str += customer.print_detail() + "\n\n";
+        break;
+      }
+    }
+    order_str += "Order Details:\n";
+    for (const LineItem& item : line_items) {
+      ostringstream price_stream;
+      price_stream << fixed << setprecision(2) << item.price;
+      order_str += "       Item " + to_string(item.item_id) + ": \"" + item.description + "\", " + to_string(item.qty) + " @ $" + price_stream.str() + "\n";
     }
 
-    order_str += "Total: $" + to_string(total()) + "\n";
+
     return order_str;
 }
 
@@ -244,6 +255,7 @@ void read_orders(const string& filename) {
             for (const Item& item : items) {
                 if (item.id == line_item.item_id) {
                     line_item.description = item.description;
+                    // get the price, but also set it to only two after the decimal
                     line_item.price = item.price;
                     break;
                 }
@@ -251,6 +263,9 @@ void read_orders(const string& filename) {
             order.line_items.push_back(line_item);
             cout << "Item ID: " + to_string(line_item.item_id) + ", Quantity: " + to_string(line_item.qty) << endl;
         }
+        //sort the line items
+        sort(order.line_items.begin(), order.line_items.end());
+
         cout << "Order ID: " << order.order_id << " line items collected" << endl;
 
         // Read payment information
@@ -298,7 +313,7 @@ int main() {
   int i = 0;
   for (i = 0; i < orders.size(); i++) {
     
-    ofs << orders[i].print_order(customers) << endl;
+    ofs << fixed << setprecision(2) << orders[i].print_order(customers) << endl;
   }
 }
 
